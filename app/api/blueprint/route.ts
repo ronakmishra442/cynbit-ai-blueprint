@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { blueprintSchema } from "@/lib/schema";
 import { generateBrief } from "@/lib/brief";
 import { rateLimit } from "@/lib/rateLimit";
+import { saveLead } from "@/lib/leads";
 
 export async function POST(req: Request) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
@@ -28,5 +29,7 @@ export async function POST(req: Request) {
   }
 
   const { brief, source } = await generateBrief(parsed.data);
-  return NextResponse.json({ brief, source });
+  const leadId = await saveLead(parsed.data, brief, source);
+
+  return NextResponse.json({ brief, source, leadId });
 }
