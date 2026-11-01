@@ -1,4 +1,4 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<!-- This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
 
@@ -33,4 +33,80 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details. -->
+
+
+# Cynbit AI Project Blueprint
+
+A guided three-step inquiry flow for Cynbit's Contact page. Visitors get an instant project brief, and the Cynbit team gets structured leads with a Hot/Warm/Cold priority in a password-protected dashboard.
+
+**Live:** https://cynbit-ai-blueprint.vercel.app
+**Admin:** https://cynbit-ai-blueprint.vercel.app/admin (password on request)
+
+## Features
+- Three-step form (service, scope and timing, details) with zod validation in the browser and on the server
+- Instant project brief after submission (LLM-generated when an API key works, otherwise a deterministic template)
+- Rule-based lead scoring (budget, timeline, detail, company) with a one-line reason
+- Leads stored in Supabase (Postgres) with row level security
+- Admin dashboard with login, priority and status filters, and a new / contacted / closed workflow
+- Rate limiting on the inquiry API and admin login
+
+## Tech stack
+Next.js 16 (App Router), TypeScript, Tailwind CSS, Zod, Supabase, Vercel.
+
+## Run locally
+```bash
+git clone https://github.com/ronakmishra442/cynbit-ai-blueprint.git
+cd cynbit-ai-blueprint
+npm install
+```
+
+Create `.env.local` in the project root:
+
+```
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+ADMIN_PASSWORD=
+# Optional: enables AI-generated briefs, otherwise the template is used
+GEMINI_API_KEY=
+```
+
+Create the `leads` table in the Supabase SQL editor (see below), then:
+
+```bash
+npm run dev
+```
+
+Open http://localhost:3000 and http://localhost:3000/admin.
+
+## Database
+```sql
+create table leads (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  service text not null,
+  industry text,
+  budget text not null,
+  timeline text not null,
+  name text not null,
+  email text not null,
+  company text,
+  description text not null,
+  brief text,
+  brief_source text,
+  status text not null default 'new',
+  priority text,
+  priority_reason text
+);
+
+alter table leads enable row level security;
+-- No public policies: only the server (service role key) can read or write.
+```
+
+## Lead scoring
+Score out of 6: budget (0 to 2) + timeline (0 to 2) + description of 200+ characters (1) + company given (1). Hot at 4 or more, Warm at 2 or 3, Cold below 2.
+
+## Known limitations
+- The rate limiter is in memory, so limits are per serverless instance.
+- Admin uses a single shared password.
+- The deployed build uses the template brief. The LLM path is implemented with a fallback but is not enabled in production.
