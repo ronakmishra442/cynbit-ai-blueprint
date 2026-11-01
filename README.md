@@ -81,25 +81,26 @@ Open http://localhost:3000 and http://localhost:3000/admin.
 
 ## Database
 ```sql
-create table leads (
-  id uuid primary key default gen_random_uuid(),
-  created_at timestamptz not null default now(),
+create table public.leads (
+  id uuid not null default gen_random_uuid (),
+  created_at timestamp with time zone not null default now(),
   service text not null,
-  industry text,
+  industry text null,
   budget text not null,
   timeline text not null,
   name text not null,
   email text not null,
-  company text,
+  company text null,
   description text not null,
-  brief text,
-  brief_source text,
-  status text not null default 'new',
-  priority text,
-  priority_reason text
-);
+  brief text not null,
+  brief_source text not null default 'template'::text,
+  status text not null default 'new'::text,
+  priority text null,
+  priority_reason text null,
+  constraint leads_pkey primary key (id)
+) TABLESPACE pg_default;
 
-alter table leads enable row level security;
+alter table public.leads enable row level security;
 -- No public policies: only the server (service role key) can read or write.
 ```
 
