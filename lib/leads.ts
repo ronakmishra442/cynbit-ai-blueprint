@@ -1,4 +1,5 @@
 import { getSupabase } from "./supabase";
+import { scoreLead } from "./scoring";
 import type { BlueprintInput } from "./schema";
 
 export async function saveLead(
@@ -8,6 +9,8 @@ export async function saveLead(
 ): Promise<string | null> {
   const supabase = getSupabase();
   if (!supabase) return null;
+
+  const { priority, reason } = scoreLead(input);
 
   const { data, error } = await supabase
     .from("leads")
@@ -22,6 +25,8 @@ export async function saveLead(
       description: input.description,
       brief,
       brief_source: briefSource,
+      priority,
+      priority_reason: reason,
     })
     .select("id")
     .single();
