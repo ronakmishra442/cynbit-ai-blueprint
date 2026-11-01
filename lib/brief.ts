@@ -1,4 +1,5 @@
 import type { BlueprintInput } from "./schema";
+import { callLLM, activeProvider } from "./llm";
 
 const SYSTEM_PROMPT = `You are a senior solutions architect at Cynbit Technologies, an AI automation and software company in Jaipur, India.
 Write a concise project brief for a prospective client, in plain text with NO markdown symbols (no #, *, or backticks).
@@ -40,43 +41,23 @@ export function fallbackBrief(i: BlueprintInput): string {
 export async function generateBrief(
   input: BlueprintInput
 ): Promise<{ brief: string; source: "ai" | "template" }> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return { brief: fallbackBrief(input), source: "template" };
+  if (!activeProvider()) return { brief: fallbackBrief(input), source: "template" };
+
+  // Stop the client from closing our <inquiry> tag early.
+  const clean = (s: string) => s.replace(/<\/?inquiry>/gi, "");
 
   const userContent = `<inquiry>
 Service: ${input.service}
-Industry: ${input.industry || "not specified"}
+Industry: ${clean(input.industry || "not specified")}
 Budget: ${input.budget}
 Timeline: ${input.timeline}
-Description: ${input.description}
+Description: ${clean(input.description)}
 </inquiry>`;
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5-5",
-        max_tokens: 900,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userContent }],
-      }),
-      signal: AbortSignal.timeout(25_000),
-    });
-    if (!res.ok) throw new Error(`LLM API returned ${res.status}`);
-
-    const data = await res.json();
-    const text = (data.content ?? [])
-      .filter((b: { type: string }) => b.type === "text")
-      .map((b: { text: string }) => b.text)
-      .join("\n")
-      .trim();
-    if (!text) throw new Error("Empty LLM response");
-
+    const text = (await callLLM(SYSTEM_PROMPT, userContent)).trim();
+    if (text.length < 80) throw new Error("LLM response too short");
+    if (text.length > 4000) throw new Error("LLM response too long");
     return { brief: text, source: "ai" };
   } catch (err) {
     console.error("generateBrief failed, using fallback:", err);
